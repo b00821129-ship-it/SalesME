@@ -1,0 +1,67 @@
+{
+  "name": "Lead",
+  "type": "object",
+  "properties": {
+    "company_name": {
+      "type": "string",
+      "description": "Company or organization name"
+    },
+    "contact_name": {
+      "type": "string",
+      "description": "Primary contact person"
+    },
+    "email": {
+      "type": "string",
+      "description": "Contact email"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Contact phone number"
+    },
+    "website": {
+      "type": "string",
+      "description": "Company website"
+    },
+    "industry": {
+      "type": "string",
+      "description": "Industry sector"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "web_scraper",
+        "referral",
+        "cold_outreach",
+        "inbound",
+        "linkedin",
+        "other"
+      ],
+      "default": "web_scraper"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "qualified",
+        "converted",
+        "disqualified"
+      ],
+      "default": "new"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "score": {
+      "type": "number",
+      "default": 0,
+      "description": "Lead quality score 0-100"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "Email of assigned rep"
+    }
+  },
+  "required": [
+    "company_name"
+  ]
+}
