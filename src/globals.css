@@ -1,0 +1,82 @@
+@import url('https://api.fontshare.com/v2/css?f[]=lufga@400,500,600,700&display=swap');
+
+:root {
+  --bg-primary: #E4E4E4;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #F5F5F5;
+  --bg-elevated: #FAFAFA;
+  --text-primary: #10141A;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --border-color: #D1D5DB;
+  --border-subtle: #E5E7EB;
+  --accent-primary: #CE6969;
+  --accent-primary-hover: #B85555;
+  --accent-secondary: #83A2DB;
+  --accent-secondary-hover: #6B8DC9;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+  --nav-bg: #FFFFFF;
+  --nav-text: #6B7280;
+  --nav-active: #CE6969;
+  --card-bg: #FFFFFF;
+  --input-bg: #FFFFFF;
+  --input-border: #D1D5DB;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #10141A;
+  --bg-surface: #1A1F2B;
+  --bg-surface-hover: #232936;
+  --bg-elevated: #1E2330;
+  --text-primary: #F1F3F5;
+  --text-secondary: #9CA3AF;
+  --text-muted: #6B7280;
+  --border-color: #2D3442;
+  --border-subtle: #252B38;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+  --nav-bg: #1A1F2B;
+  --nav-text: #9CA3AF;
+  --nav-active: #CE6969;
+  --card-bg: #1A1F2B;
+  --input-bg: #232936;
+  --input-border: #2D3442;
+}
+
+* {
+  font-family: 'Lufga', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Override shadcn defaults */
+.border { border-color: var(--border-color) !important; }
+
+input, textarea, select {
+  background-color: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Kanban column styling */
+.kanban-column {
+  min-height: 400px;
+}
+
+/* Smooth transitions for theme */
+.theme-transition {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
