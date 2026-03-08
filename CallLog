@@ -1,0 +1,59 @@
+{
+  "name": "CallLog",
+  "type": "object",
+  "properties": {
+    "deal_id": {
+      "type": "string"
+    },
+    "lead_id": {
+      "type": "string"
+    },
+    "contact_name": {
+      "type": "string"
+    },
+    "phone_number": {
+      "type": "string"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "default": 0
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "NA",
+        "HU",
+        "CB",
+        "BKD",
+        "sale",
+        "dnc"
+      ],
+      "description": "Call outcome"
+    },
+    "transcript_rep": {
+      "type": "string",
+      "description": "Channel B - Rep transcript"
+    },
+    "transcript_prospect": {
+      "type": "string",
+      "description": "Channel A - Prospect transcript"
+    },
+    "ai_summary": {
+      "type": "string"
+    },
+    "ai_positives": {
+      "type": "string",
+      "description": "JSON array of things done well"
+    },
+    "ai_improvements": {
+      "type": "string",
+      "description": "JSON array of things to improve"
+    },
+    "assigned_to": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "contact_name"
+  ]
+}
