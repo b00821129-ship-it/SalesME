@@ -1,0 +1,266 @@
+import { useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { Loader2, GitBranch, ChevronRight, RotateCcw, Zap, TrendingUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const ROOT_OBJECTIONS = [
+  "It's too expensive",
+  "We're happy with our current provider",
+  "I need to think about it",
+  "Send me some info first",
+  "I need to speak to my boss",
+  "Now is not the right time",
+  "We tried something like this before and it didn't work",
+  "I'm not the right person to talk to",
+];
+
+// A single node in the tree — shows the rep's line, then loads prospect replies as branches
+function TreeNode({ node, depth = 0 }) {
+  const [branches, setBranches] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(depth === 0);
+
+  const loadBranches = async () => {
+    if (branches) {
+      setExpanded(!expanded);
+      return;
+    }
+    setLoading(true);
+    setExpanded(true);
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are an elite B2B sales closer analyzing millions of real sales calls.
+
+Context: A sales rep just said this to handle an objection:
+"${node.rep_line}"
+
+Generate exactly 3 realistic prospect responses they might give back — ranging from still resistant to almost convinced.
+For each prospect response, give the BEST rep reply to keep moving toward booking a meeting, with a data-backed win rate note.
+
+Return JSON only.`,
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          branches: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                prospect_reply: { type: 'string' },
+                rep_response: { type: 'string' },
+                win_rate_note: { type: 'string' },
+                sentiment: { type: 'string', enum: ['resistant', 'neutral', 'warm'] }
+              }
+            }
+          }
+        }
+      }
+    });
+    setBranches(res.branches || []);
+    setLoading(false);
+  };
+
+  const sentimentColor = {
+    resistant: '#CE6969',
+    neutral: '#F59E0B',
+    warm: '#22c55e',
+  };
+
+  const sentimentBg = {
+    resistant: 'rgba(206,105,105,0.08)',
+    neutral: 'rgba(245,158,11,0.08)',
+    warm: 'rgba(34,197,94,0.08)',
+  };
+
+  return (
+    <div style={{ marginLeft: depth > 0 ? 20 : 0 }}>
+      {/* Rep line */}
+      <div
+        className="rounded-xl p-4 mb-3 cursor-pointer hover:opacity-90 transition-opacity"
+        style={{
+          backgroundColor: depth === 0 ? 'rgba(131,162,219,0.1)' : 'rgba(131,162,219,0.06)',
+          borderLeft: `3px solid ${depth === 0 ? '#83A2DB' : 'rgba(131,162,219,0.4)'}`,
+        }}
+        onClick={loadBranches}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2 flex-1">
+            <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: '#83A2DB' }} />
+            <div>
+              <p className="text-xs font-semibold mb-1" style={{ color: '#83A2DB' }}>
+                {depth === 0 ? 'YOUR OPENER' : 'YOUR RESPONSE'}
+              </p>
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                "{node.rep_line}"
+              </p>
+            </div>
+          </div>
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin shrink-0 mt-1" style={{ color: '#83A2DB' }} />
+          ) : (
+            <div className="flex items-center gap-1 shrink-0 mt-1">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {branches ? (expanded ? 'collapse' : 'expand') : 'see branches'}
+              </span>
+              <ChevronRight
+                className="w-3.5 h-3.5 transition-transform"
+                style={{
+                  color: 'var(--text-muted)',
+                  transform: expanded && branches ? 'rotate(90deg)' : 'none'
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Branches */}
+      <AnimatePresence>
+        {expanded && branches && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-4 overflow-hidden"
+          >
+            {branches.map((branch, i) => (
+              <div key={i} className="ml-4 border-l-2 pl-4" style={{ borderColor: 'var(--border-subtle)' }}>
+                {/* Prospect Reply */}
+                <div
+                  className="rounded-xl p-3 mb-2"
+                  style={{ backgroundColor: sentimentBg[branch.sentiment] || sentimentBg.neutral }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: sentimentColor[branch.sentiment] || sentimentColor.neutral }}
+                    />
+                    <p className="text-xs font-semibold capitalize" style={{ color: sentimentColor[branch.sentiment] || sentimentColor.neutral }}>
+                      Prospect — {branch.sentiment}
+                    </p>
+                  </div>
+                  <p className="text-sm italic" style={{ color: 'var(--text-secondary)' }}>
+                    "{branch.prospect_reply}"
+                  </p>
+                </div>
+
+                {/* Win rate note */}
+                {branch.win_rate_note && (
+                  <div className="flex items-center gap-1.5 mb-2 px-1">
+                    <TrendingUp className="w-3 h-3 shrink-0" style={{ color: '#22c55e' }} />
+                    <p className="text-xs" style={{ color: '#22c55e' }}>{branch.win_rate_note}</p>
+                  </div>
+                )}
+
+                {/* Next rep node — recursive */}
+                <TreeNode
+                  node={{ rep_line: branch.rep_response }}
+                  depth={depth + 1}
+                />
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+export default function ObjectionTree() {
+  const [selected, setSelected] = useState(null);
+  const [rootNode, setRootNode] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const startTree = async (objection) => {
+    setSelected(objection);
+    setRootNode(null);
+    setLoading(true);
+
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are an elite B2B sales coach with data from millions of real sales calls.
+
+A prospect just said: "${objection}"
+
+Give the single BEST opening rep response to this objection — the one that statistically leads to the highest booking rate based on analysis of millions of real calls. Word-for-word, exactly what to say. 2 sentences max.
+
+Return JSON only.`,
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          rep_line: { type: 'string' }
+        }
+      }
+    });
+
+    setRootNode({ rep_line: res.rep_line });
+    setLoading(false);
+  };
+
+  const reset = () => {
+    setSelected(null);
+    setRootNode(null);
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Intro */}
+      <div className="rounded-2xl px-5 py-4 flex items-start gap-3" style={{ backgroundColor: 'rgba(206,105,105,0.06)', border: '1px solid rgba(206,105,105,0.2)' }}>
+        <GitBranch className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#CE6969' }} />
+        <div>
+          <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--text-primary)' }}>Live Objection Tree</p>
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            Pick the objection your prospect just threw at you. The tree gives you exactly what to say — then click through their reply to keep navigating toward the booking.
+          </p>
+        </div>
+      </div>
+
+      {/* Objection Picker */}
+      {!selected && (
+        <div className="grid grid-cols-1 gap-2">
+          {ROOT_OBJECTIONS.map((obj, i) => (
+            <motion.button
+              key={i}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => startTree(obj)}
+              className="text-left px-5 py-3.5 rounded-xl text-sm font-medium flex items-center gap-3 transition-all duration-200"
+              style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+            >
+              <span className="text-base">💬</span>
+              "{obj}"
+            </motion.button>
+          ))}
+        </div>
+      )}
+
+      {/* Loading root */}
+      {selected && loading && (
+        <div className="flex items-center gap-2 py-6 justify-center">
+          <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#83A2DB' }} />
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Building your objection tree…</span>
+        </div>
+      )}
+
+      {/* Tree */}
+      {selected && rootNode && !loading && (
+        <div className="space-y-4">
+          {/* Prospect bubble */}
+          <div className="rounded-xl p-4" style={{ backgroundColor: 'rgba(206,105,105,0.08)', borderLeft: '3px solid #CE6969' }}>
+            <p className="text-xs font-semibold mb-1" style={{ color: '#CE6969' }}>PROSPECT SAID</p>
+            <p className="text-sm italic" style={{ color: 'var(--text-primary)' }}>"{selected}"</p>
+          </div>
+
+          <TreeNode node={rootNode} depth={0} />
+
+          <button
+            onClick={reset}
+            className="flex items-center gap-2 text-sm mt-4 hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Pick a different objection
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
