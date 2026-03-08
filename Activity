@@ -1,0 +1,68 @@
+{
+  "name": "Activity",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "call",
+        "email",
+        "meeting",
+        "note",
+        "task",
+        "follow_up"
+      ],
+      "default": "call"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "deal_id": {
+      "type": "string"
+    },
+    "lead_id": {
+      "type": "string"
+    },
+    "contact_name": {
+      "type": "string"
+    },
+    "scheduled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "duration_minutes": {
+      "type": "number"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "NA",
+        "HU",
+        "CB",
+        "BKD",
+        "completed",
+        "no_show",
+        "rescheduled"
+      ],
+      "description": "NA=No Answer, HU=Hung Up, CB=Callback, BKD=Booked"
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string",
+      "default": "#CE6969"
+    }
+  },
+  "required": [
+    "title",
+    "type"
+  ]
+}
