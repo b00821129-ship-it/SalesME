@@ -37,4 +37,20 @@
     },
     "assigned_to": {
       "type": "string"
- 
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "onboarding",
+        "follow_up",
+        "admin",
+        "sop",
+        "general"
+      ],
+      "default": "general"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
