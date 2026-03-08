@@ -1,0 +1,86 @@
+{
+  "name": "Deal",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Deal name"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "contact_name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number",
+      "default": 0,
+      "description": "Deal value in dollars"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "discovery",
+        "proposal",
+        "negotiation",
+        "contract",
+        "won",
+        "lost"
+      ],
+      "default": "discovery"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium"
+    },
+    "organization_details": {
+      "type": "string"
+    },
+    "service_areas": {
+      "type": "string"
+    },
+    "budget": {
+      "type": "number"
+    },
+    "custom_fields": {
+      "type": "string",
+      "description": "JSON string of custom field key-value pairs"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "lead_id": {
+      "type": "string"
+    },
+    "expected_close_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "probability": {
+      "type": "number",
+      "default": 50
+    },
+    "stage_order": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
