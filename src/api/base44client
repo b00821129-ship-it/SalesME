@@ -1,14 +1,303 @@
-import { createClient } from '@base44/sdk';
-import { appParams } from '@/lib/app-params';
+/**
+ * base44Client.js  —  Supabase replacement for @base44/sdk
+ *
+ * Drop-in: every page/component import stays unchanged.
+ * Uses Supabase JS SDK v2 for all data + auth.
+ *
+ * Env vars (set in .env.local):
+ *   VITE_SUPABASE_URL   = https://iurhezezunkltucvvsvv.supabase.co
+ *   VITE_SUPABASE_ANON  = eyJ...
+ */
 
-const { appId, token, functionsVersion, appBaseUrl } = appParams;
+import { createClient } from '@supabase/supabase-js';
 
-//Create a client with authentication required
-export const base44 = createClient({
-  appId,
-  token,
-  functionsVersion,
-  serverUrl: '',
-  requiresAuth: false,
-  appBaseUrl
-});
+// ─── Supabase client ──────────────────────────────────────────────────────────
+
+const supabaseUrl  = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON;
+
+if (!supabaseUrl || !supabaseAnon) {
+  console.error(
+    '[base44Client] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON in .env.local'
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnon);
+
+// ─── Entity factory ───────────────────────────────────────────────────────────
+// Maps camelCase entity names → snake_case Supabase table names.
+// e.g. "CallLog" → "call_logs", "SOP" → "sops", "Activity" → "activities"
+
+function toTableName(name) {
+  return (
+    name
+      // Insert underscore before each uppercase letter (except the first)
+      .replace(/([A-Z])/g, (m, l, i) => (i > 0 ? '_' : '') + l.toLowerCase())
+      // Simple pluralisation
+      .replace(/y$/, 'ie') + 's'
+  );
+}
+
+function throwIfError(error) {
+  if (error) {
+    const e = new Error(error.message ?? 'Supabase error');
+    e.code    = error.code;
+    e.details = error.details;
+    e.hint    = error.hint;
+    throw e;
+  }
+}
+
+function makeEntity(name) {
+  const table = toTableName(name);
+
+  return {
+    /**
+     * list(sortField?)
+     * sortField can be '-created_at' (desc) or 'name' (asc)
+     */
+    list: async (sortField) => {
+      let q = supabase.from(table).select('*');
+      if (sortField) {
+        const desc = sortField.startsWith('-');
+        q = q.order(desc ? sortField.slice(1) : sortField, { ascending: !desc });
+      }
+      const { data, error } = await q;
+      throwIfError(error);
+      return data;
+    },
+
+    get: async (id) => {
+      const { data, error } = await supabase
+        .from(table)
+        .select('*')
+        .eq('id', id)
+        .single();
+      throwIfError(error);
+      return data;
+    },
+
+    create: async (record) => {
+      const { data, error } = await supabase
+        .from(table)
+        .insert(record)
+        .select()
+        .single();
+      throwIfError(error);
+      return data;
+    },
+
+    update: async (id, record) => {
+      const { data, error } = await supabase
+        .from(table)
+        .update(record)
+        .eq('id', id)
+        .select()
+        .single();
+      throwIfError(error);
+      return data;
+    },
+
+    delete: async (id) => {
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      throwIfError(error);
+      return null;
+    },
+
+    /**
+     * filter({ field: value, ... })
+     * Applies equality filters — extend with .ilike / .gte as needed.
+     */
+    filter: async (criteria) => {
+      let q = supabase.from(table).select('*');
+      for (const [col, val] of Object.entries(criteria)) {
+        q = q.eq(col, val);
+      }
+      const { data, error } = await q;
+      throwIfError(error);
+      return data;
+    },
+
+    /**
+     * bulkCreate([...records])
+     */
+    bulkCreate: async (records) => {
+      const { data, error } = await supabase
+        .from(table)
+        .insert(records)
+        .select();
+      throwIfError(error);
+      return data;
+    },
+  };
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+const auth = {
+  /**
+   * me() → returns the current user profile.
+   * Merges Supabase auth user with the profiles table row (if it exists).
+   */
+  me: async () => {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      const e = new Error(error?.message ?? 'Not authenticated');
+      e.status = 401;
+      throw e;
+    }
+
+    // Fetch extended profile — optional, won't fail if table doesn't exist yet
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    return {
+      id:        user.id,
+      email:     user.email,
+      full_name: profile?.full_name ?? user.user_metadata?.full_name ?? '',
+      role:      profile?.role      ?? 'user',
+      avatar_url: profile?.avatar_url ?? user.user_metadata?.avatar_url ?? null,
+      ...profile,
+    };
+  },
+
+  logout: async (returnUrl) => {
+    await supabase.auth.signOut();
+    window.location.href = returnUrl
+      ? `/login?return=${encodeURIComponent(returnUrl)}`
+      : '/';
+  },
+
+  redirectToLogin: (returnUrl) => {
+    const back = returnUrl ?? window.location.href;
+    window.location.href = `/login?return=${encodeURIComponent(back)}`;
+  },
+
+  /**
+   * loginWithEmail(email, password) → Supabase email/password sign-in.
+   * Call this from your Login page.
+   */
+  loginWithEmail: async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw new Error(error.message);
+    return data.user;
+  },
+
+  /**
+   * signUpWithEmail(email, password, metadata?)
+   * metadata: { full_name, ... }
+   */
+  signUpWithEmail: async (email, password, metadata = {}) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: metadata },
+    });
+    if (error) throw new Error(error.message);
+    return data.user;
+  },
+
+  /** Kept for compatibility — no-op with Supabase (session is cookie/localStorage). */
+  setToken: (_token) => {
+    console.warn('[base44Client] setToken() is a no-op with Supabase auth.');
+  },
+};
+
+// ─── LLM  (replaces base44.integrations.Core.InvokeLLM) ──────────────────────
+// Calls a Supabase Edge Function named "invoke-llm".
+// Deploy it from: supabase/functions/invoke-llm/index.ts
+
+const llm = {
+  invoke: async ({ prompt, response_json_schema }) => {
+    const { data, error } = await supabase.functions.invoke('invoke-llm', {
+      body: { prompt, response_json_schema: response_json_schema ?? null },
+    });
+    if (error) throw new Error(error.message);
+    return data?.result ?? data;
+  },
+};
+
+// ─── Agents ───────────────────────────────────────────────────────────────────
+// Stored in `conversations` + `conversation_messages` tables.
+// subscribeToConversation uses Supabase Realtime instead of polling.
+
+const agents = {
+  createConversation: async ({ agent_name, metadata } = {}) => {
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert({ agent_name, metadata, messages: [] })
+      .select()
+      .single();
+    throwIfError(error);
+    return data;
+  },
+
+  addMessage: async (conversation, message) => {
+    const { data, error } = await supabase
+      .from('conversation_messages')
+      .insert({ conversation_id: conversation.id, ...message })
+      .select()
+      .single();
+    throwIfError(error);
+    return data;
+  },
+
+  /**
+   * subscribeToConversation(id, callback) → unsubscribe fn.
+   * Uses Supabase Realtime — no polling needed.
+   */
+  subscribeToConversation: (conversationId, callback) => {
+    const channel = supabase
+      .channel(`conversation:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event:  '*',
+          schema: 'public',
+          table:  'conversation_messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        async () => {
+          // Re-fetch full conversation on any change
+          const { data } = await supabase
+            .from('conversation_messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true });
+          callback({ id: conversationId, messages: data ?? [] });
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  },
+};
+
+// ─── Unified export (mirrors old `base44` object shape) ───────────────────────
+
+export const base44 = {
+  entities: {
+    Activity: makeEntity('Activity'),
+    CallLog:  makeEntity('CallLog'),
+    Deal:     makeEntity('Deal'),
+    Lead:     makeEntity('Lead'),
+    SOP:      makeEntity('SOP'),
+    Task:     makeEntity('Task'),
+  },
+
+  auth,
+
+  integrations: {
+    Core: {
+      InvokeLLM: (opts) => llm.invoke(opts),
+    },
+  },
+
+  agents,
+};
